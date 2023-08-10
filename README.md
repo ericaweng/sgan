@@ -1,3 +1,19 @@
+To save predicted trajectories to file for evaluation using our evaluation system, please:
+1. create a new virtual environment
+2. run `pip install -r requirements.txt` to install requirements
+3. run `pip install -e .` to install the current directory as a package.
+4. run the `download_data.sh` script to download the data to the `./data` folder.
+
+Then, from `{root}/sgan`, run:
+
+`scripts/evaluate_model.py --model_path ../pre_trained_models/sgan/`
+
+and the trajectory files will save to `{root}/trajectories/sgan` for all datasets.
+
+You can specify a different output path by changing the `--save_trajectories_path` argument.
+
+____________________________________________________
+
 # Social GAN
 
 This is the code for the paper

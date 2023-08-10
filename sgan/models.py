@@ -60,8 +60,8 @@ class Encoder(nn.Module):
         """
         # Encode observed Trajectory
         batch = obs_traj.size(1)
-        obs_traj_embedding = self.spatial_embedding(obs_traj.view(-1, 2))
-        obs_traj_embedding = obs_traj_embedding.view(
+        obs_traj_embedding = self.spatial_embedding(obs_traj.reshape(-1, 2))
+        obs_traj_embedding = obs_traj_embedding.reshape(
             -1, batch, self.embedding_dim
         )
         state_tuple = self.init_hidden(batch)
@@ -135,18 +135,18 @@ class Decoder(nn.Module):
         batch = last_pos.size(0)
         pred_traj_fake_rel = []
         decoder_input = self.spatial_embedding(last_pos_rel)
-        decoder_input = decoder_input.view(1, batch, self.embedding_dim)
+        decoder_input = decoder_input.reshape(1, batch, self.embedding_dim)
 
         for _ in range(self.seq_len):
             output, state_tuple = self.decoder(decoder_input, state_tuple)
-            rel_pos = self.hidden2pos(output.view(-1, self.h_dim))
+            rel_pos = self.hidden2pos(output.reshape(-1, self.h_dim))
             curr_pos = rel_pos + last_pos
 
             if self.pool_every_timestep:
                 decoder_h = state_tuple[0]
                 pool_h = self.pool_net(decoder_h, seq_start_end, curr_pos)
                 decoder_h = torch.cat(
-                    [decoder_h.view(-1, self.h_dim), pool_h], dim=1)
+                    [decoder_h.reshape(-1, self.h_dim), pool_h], dim=1)
                 decoder_h = self.mlp(decoder_h)
                 decoder_h = torch.unsqueeze(decoder_h, 0)
                 state_tuple = (decoder_h, state_tuple[1])
@@ -154,8 +154,8 @@ class Decoder(nn.Module):
             embedding_input = rel_pos
 
             decoder_input = self.spatial_embedding(embedding_input)
-            decoder_input = decoder_input.view(1, batch, self.embedding_dim)
-            pred_traj_fake_rel.append(rel_pos.view(batch, -1))
+            decoder_input = decoder_input.reshape(1, batch, self.embedding_dim)
+            pred_traj_fake_rel.append(rel_pos.reshape(batch, -1))
             last_pos = curr_pos
 
         pred_traj_fake_rel = torch.stack(pred_traj_fake_rel, dim=0)
@@ -195,7 +195,7 @@ class PoolHiddenNet(nn.Module):
         """
         col_len = tensor.size(1)
         tensor = tensor.unsqueeze(dim=1).repeat(1, num_reps, 1)
-        tensor = tensor.view(-1, col_len)
+        tensor = tensor.reshape(-1, col_len)
         return tensor
 
     def forward(self, h_states, seq_start_end, end_pos):
@@ -212,7 +212,7 @@ class PoolHiddenNet(nn.Module):
             start = start.item()
             end = end.item()
             num_ped = end - start
-            curr_hidden = h_states.view(-1, self.h_dim)[start:end]
+            curr_hidden = h_states.reshape(-1, self.h_dim)[start:end]
             curr_end_pos = end_pos[start:end]
             # Repeat -> H1, H2, H1, H2
             curr_hidden_1 = curr_hidden.repeat(num_ped, 1)
@@ -224,7 +224,7 @@ class PoolHiddenNet(nn.Module):
             curr_rel_embedding = self.spatial_embedding(curr_rel_pos)
             mlp_h_input = torch.cat([curr_rel_embedding, curr_hidden_1], dim=1)
             curr_pool_h = self.mlp_pre_pool(mlp_h_input)
-            curr_pool_h = curr_pool_h.view(num_ped, num_ped, -1).max(1)[0]
+            curr_pool_h = curr_pool_h.reshape(num_ped, num_ped, -1).max(1)[0]
             pool_h.append(curr_pool_h)
         pool_h = torch.cat(pool_h, dim=0)
         return pool_h
@@ -282,7 +282,7 @@ class SocialPooling(nn.Module):
         """
         col_len = tensor.size(1)
         tensor = tensor.unsqueeze(dim=1).repeat(1, num_reps, 1)
-        tensor = tensor.view(-1, col_len)
+        tensor = tensor.reshape(-1, col_len)
         return tensor
 
     def forward(self, h_states, seq_start_end, end_pos):
@@ -300,7 +300,7 @@ class SocialPooling(nn.Module):
             end = end.item()
             num_ped = end - start
             grid_size = self.grid_size * self.grid_size
-            curr_hidden = h_states.view(-1, self.h_dim)[start:end]
+            curr_hidden = h_states.reshape(-1, self.h_dim)[start:end]
             curr_hidden_repeat = curr_hidden.repeat(num_ped, 1)
             curr_end_pos = end_pos[start:end]
             curr_pool_h_size = (num_ped * grid_size) + 1
@@ -325,7 +325,7 @@ class SocialPooling(nn.Module):
 
             within_bound = x_bound + y_bound
             within_bound[0::num_ped + 1] = 1  # Don't include the ped itself
-            within_bound = within_bound.view(-1)
+            within_bound = within_bound.reshape(-1)
 
             # This is a tricky way to get scatter add to work. Helps me avoid a
             # for loop. Offset everything by 1. Use the initial 0 position to
@@ -336,15 +336,15 @@ class SocialPooling(nn.Module):
                 0, total_grid_size * num_ped, total_grid_size
             ).type_as(seq_start_end)
 
-            offset = self.repeat(offset.view(-1, 1), num_ped).view(-1)
+            offset = self.repeat(offset.reshape(-1, 1), num_ped).reshape(-1)
             grid_pos += offset
             grid_pos[within_bound != 0] = 0
-            grid_pos = grid_pos.view(-1, 1).expand_as(curr_hidden_repeat)
+            grid_pos = grid_pos.reshape(-1, 1).expand_as(curr_hidden_repeat)
 
             curr_pool_h = curr_pool_h.scatter_add(0, grid_pos,
                                                   curr_hidden_repeat)
             curr_pool_h = curr_pool_h[1:]
-            pool_h.append(curr_pool_h.view(num_ped, -1))
+            pool_h.append(curr_pool_h.reshape(num_ped, -1))
 
         pool_h = torch.cat(pool_h, dim=0)
         pool_h = self.mlp_pool(pool_h)
@@ -473,7 +473,7 @@ class TrajectoryGenerator(nn.Module):
             for idx, (start, end) in enumerate(seq_start_end):
                 start = start.item()
                 end = end.item()
-                _vec = z_decoder[idx].view(1, -1)
+                _vec = z_decoder[idx].reshape(1, -1)
                 _to_cat = _vec.repeat(end - start, 1)
                 _list.append(torch.cat([_input[start:end], _to_cat], dim=1))
             decoder_h = torch.cat(_list, dim=0)
@@ -512,9 +512,9 @@ class TrajectoryGenerator(nn.Module):
             pool_h = self.pool_net(final_encoder_h, seq_start_end, end_pos)
             # Construct input hidden states for decoder
             mlp_decoder_context_input = torch.cat(
-                [final_encoder_h.view(-1, self.encoder_h_dim), pool_h], dim=1)
+                [final_encoder_h.reshape(-1, self.encoder_h_dim), pool_h], dim=1)
         else:
-            mlp_decoder_context_input = final_encoder_h.view(
+            mlp_decoder_context_input = final_encoder_h.reshape(
                 -1, self.encoder_h_dim)
 
         # Add Noise
