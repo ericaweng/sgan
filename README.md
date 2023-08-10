@@ -4,7 +4,7 @@ To save predicted trajectories to file for evaluation using our evaluation syste
 3. run `pip install -e .` to install the current directory as a package.
 4. run the `download_data.sh` script to download the data to the `./data` folder.
 
-Then, from `{root}/sgan`, run:
+Then, from `{joint_metrics_matter_root}/sgan`, run:
 
 `scripts/evaluate_model.py --model_path ../pre_trained_models/sgan/`
 
