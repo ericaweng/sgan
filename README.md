@@ -8,7 +8,7 @@ Then, from `{joint_metrics_matter_root}/sgan`, run:
 
 `scripts/evaluate_model.py --model_path ../pre_trained_models/sgan/`
 
-and the trajectory files will save to `{root}/trajectories/sgan` for all datasets.
+and the trajectory files will save to `{root}/results/trajectories/sgan` for all datasets.
 
 You can specify a different output path by changing the `--save_trajectories_path` argument.
 
