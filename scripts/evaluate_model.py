@@ -12,7 +12,7 @@ from sgan.utils import relative_to_abs, get_dset_path
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--model_path', type=str)
-parser.add_argument('--trajectories_save_path', type=str, default='../trajectories/sgan')
+parser.add_argument('--trajectories_save_path', type=str, default='../../results/trajectories/sgan')
 parser.add_argument('--num_samples', default=20, type=int)
 parser.add_argument('--dset_type', default='test', type=str)
 
